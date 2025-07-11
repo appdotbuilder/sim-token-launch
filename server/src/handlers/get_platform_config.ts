@@ -1,18 +1,31 @@
 
+import { db } from '../db';
+import { platformConfigTable } from '../db/schema';
 import { type PlatformConfig } from '../schema';
 
 export const getPlatformConfig = async (): Promise<PlatformConfig> => {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is fetching current platform configuration settings.
-  // Should return current fee percentages, default values, and RPC URLs.
-  return Promise.resolve({
-    id: 1,
-    transaction_fee_percentage: 2.5,
-    default_token_supply: 1000000,
-    default_token_price: 0.001,
-    ethereum_rpc_url: null,
-    mainnet_rpc_url: null,
-    created_at: new Date(),
-    updated_at: new Date()
-  } as PlatformConfig);
+  try {
+    // Get the first (and typically only) platform config record
+    const result = await db.select()
+      .from(platformConfigTable)
+      .limit(1)
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error('Platform configuration not found');
+    }
+
+    const config = result[0];
+    
+    // Convert numeric fields back to numbers
+    return {
+      ...config,
+      transaction_fee_percentage: parseFloat(config.transaction_fee_percentage),
+      default_token_supply: parseFloat(config.default_token_supply),
+      default_token_price: parseFloat(config.default_token_price)
+    };
+  } catch (error) {
+    console.error('Failed to get platform config:', error);
+    throw error;
+  }
 };

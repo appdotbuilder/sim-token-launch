@@ -1,21 +1,56 @@
 
+import { db } from '../db';
+import { tokensTable } from '../db/schema';
 import { type UpdateTokenInput, type Token } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export const updateToken = async (input: UpdateTokenInput): Promise<Token> => {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is updating token metadata and status (admin functionality).
-  // Should validate admin permissions and update allowed fields only.
-  return Promise.resolve({
-    id: input.id,
-    name: 'Updated Token',
-    symbol: 'UPD',
-    description: null,
-    initial_supply: 1000000,
-    current_supply: 1000000,
-    current_price: 1.0,
-    creator_id: 1,
-    status: input.status || 'active',
-    created_at: new Date(),
-    updated_at: new Date()
-  } as Token);
+  try {
+    // Build update object with only provided fields
+    const updateData: Partial<{
+      name: string;
+      symbol: string;
+      description: string | null;
+      status: 'active' | 'paused' | 'inactive';
+      updated_at: Date;
+    }> = {
+      updated_at: new Date()
+    };
+
+    if (input.name !== undefined) {
+      updateData.name = input.name;
+    }
+    if (input.symbol !== undefined) {
+      updateData.symbol = input.symbol;
+    }
+    if (input.description !== undefined) {
+      updateData.description = input.description;
+    }
+    if (input.status !== undefined) {
+      updateData.status = input.status;
+    }
+
+    // Update the token record
+    const result = await db.update(tokensTable)
+      .set(updateData)
+      .where(eq(tokensTable.id, input.id))
+      .returning()
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error('Token not found');
+    }
+
+    // Convert numeric fields back to numbers before returning
+    const token = result[0];
+    return {
+      ...token,
+      initial_supply: parseFloat(token.initial_supply),
+      current_supply: parseFloat(token.current_supply),
+      current_price: parseFloat(token.current_price)
+    };
+  } catch (error) {
+    console.error('Token update failed:', error);
+    throw error;
+  }
 };
